@@ -1,0 +1,608 @@
+Routing Protocol
+  *AS : 관리자가 관리하는 NETWORK망
+IGP(AS내) : 
+	    Distance Vector - RIPv1,IGRP(Classful)
+			    - RIPv2(Classless지원,Classful도 가능)
+	
+	    Advance Distance Vector - EIGRP
+	
+	    Link Sate - OSPF,IS-IS(Classless)
+
+EGP(AS간) : BGPV4(Classless)
+
+Routed Protocol : IP
+
+1.Administrative  Distance 값
+ RIP   : 120
+ IGRP  : 100
+ EIGRP : 90
+ OSPF  : 110
+ IS-IS : 115
+ BGP - IBGP : 200
+       EBGP : 20
+
+2. Metric
+3. Longest Prefix Length
+
+
+Classful Routing
+ - subnet정보를 전달X
+ - 자동 축약
+ - RIPv1,IGRP
+
+Classless Routing
+ - subnet정보를 전달
+ - 자동 축약 X(수동 축약을 함)
+
+
+※ Routing Protocol
+		      RIPv1    RIPv2  IGRP    EIGRP    OSPF
+Distane vector	 	o	o	o	o
+link-state      					o
+classful		o	o	o	o
+classless			o		o	o
+proprietary				o	o	
+scalability   	     small    small    med    large    large
+convergence time      slow     slow   slow     fast     fast
+
+* routing table 상 [ad값/hop값] via (연결된 router ip)
+
+================================================================================
+OSPF Packet Types
+
+ Type   Packet name
+  1	 Hello 	    Neighbor를 발견, 인접관계 형성
+  2	 DBD	    Router사이에서 DB가 동기화되었는지 확인
+  3	 LSRe(quest)다른 Router로 링크상태 정보 요청
+  4	 LSU(pdate) 요청 받은 특정링크상태 정보 전송
+  5	 LSAck	    다른 Packet Type에 대한 확인 응답
+
+* DBD : Database Description
+  LS  : Link-State
+* Type 번호를 외울것!
+
+ Header Foramt
+* Protocol no.89 : OSPF
+version number
+type
+packet length : 패킷 길이
+router id : 4byte 크기
+area id : 4byte 크기
+checksum
+authentication type
+authentication
+data : type에 대한 정보
+
+* Neighbor 맺어진 상태에서는 Router Id는 변경되지 않는다.
+* Data : Type에 대한 정보
+* multicast로 hello 전송(224.0.0.5)
+
+ Neighborship(Hello Packet)
+Router ID
+Hello and dead Intervals* : hello=10s, dead=40s
+Neighbors
+Area ID* : 같은 영역이어야 한다.
+Router priority : 가중치값, DR 우선순위가 정해진다.
+DR IP address 
+Authentication password* 
+Stub area flag*
+
+*는 반드시 매칭되어야 Neighbor를 맺는다.
+
+Down State : 아무것도 안보낸 상태
+Init State : 한쪽에서 Hello 보낸 상태(Router id보냄)
+Two-way State : 양쪽에서 보낸 상태(Router id보냄)
+		수신한 hello내에 자신의 Router ID의 존재를 확인한 상태
+Exstart State : 간략한 정보를 보냄,DR선출과정
+* router id가 높으면 DR이 된다.
+* DR이 필요없을 경우 해당 송수신은 없을 수도 있다.
+Exchange State : LSDB의 축약정보를 보냄,DBD를 전달
+* LSR을 통해 모르는 정보를 요청
+* LSU를 통해 모르는 정보를 보냄
+* LSAck를 통해 수신완료 정보를 보냄
+Loading State : 정보를 공유,LSR과 LSU를 교환
+Full State : 모든 정보공유를 완료한 상태,Neighbor와 Fully Adjacent관계 형성
+
+* Link-State 정보는 DR만 전송한다.
+  변화가 있을시 DR로 multicast(224.0.0.6)로 보낸다.
+
+※ Network Type
+
+ Point-to-Point
+   DR,BDR선출 할 필요X
+   Serial interface type을 자동 감지
+   multicast = 224.0.0.5
+   Hello,dead interval/area id만 같으면 된다
+
+ Broadcast
+   ethernet,token ring network 환경
+   DR,BDR 선출
+   오직 DR,BDR만 adjacent
+   DR,BDR=224.0.0.5, Otehr = 224.0.0.6
+
+※ DR / BDR 선출 기준 
+ 1. 가장 높은 Priority값을 가지는 Router가 DR로 선출 
+     두 번째로 높은 Priority 값을 갖는 Router가 BDR로 선출 
+    0은 제외, 1은 default
+    Priority값은 interface에 설정(ip ospf priority [number])
+ 2. Priority 가 같은 경우 높은 OSPF Router ID를 갖는 Router가 DR로 선출 
+    선출이 완료된 후 더 높은 OSPF Priority 를 갖는 Router가 추가되어도
+    DR , BDR 기능을 선점하지 않는다
+    단, DR,BDR이 변화가 있을 시 변경
+
+ Nonbroadcast Multi Access
+  사용 : Wan환경.Frame Relay,ATM,X.25
+   DR,BDR 선출이 중요하다!!
+   hello=30sec, dead=120sec   
+   OSPF Neighbor를 수동으로 설정
+    ㄴ neighbor ip-address [priority number ] [poll-interval number ]
+                           [cost number ] [database-filter all] 
+   
+ * WAN은 Broadcast가 아닌 Unicast
+
+확인 명령어 : show ip ospf interface [type slot/port]
+
+OSPF Mode    권장 NBMA    Subnet     Hello   Adjacency   기본 인터페이스
+	     Topology    Address    Timer
+
+Broadcast    전체 메시 형     동일       10초     자동 감지       이더넷 
+					   DR/BDR 선출 필요
+Nonbroadcast 전체 메시 형     동일       30초    수동 설정	  프레임릴레이
+ (NBMA) 				   DR/BDR 선출 필요  X.25 ATM 
+
+Point-to     부분 메시 형     동일       30초     자동 감지	    없음
+multipoint   또는 스타 형			   DR/BDR 선출 불필요 
+ 
+Point-to     부분 메시형     서브인터페이스  10초    자동 감지 	   전용회선
+-point       서브인터페이스를  마다 하나의        DR/BDR 선출 불필요 (PPP, HDLC)
+	     이용한 스타 형   서브넷을 가짐
+
+----------------------------------------------------------------------------------
+area가 한개 이상일 경우 반드시 0번은 있어야 한다.
+  
+Router ID
+ - 정해지면 변경되지 않는다.(재구동 시 변함)
+ - 결정 순서
+   1. 수동(명령어 : router-id)
+   2. Loopback interface의 address        ↑ 권장사항
+ ===================================================
+   3. Physical interface의 address
+       ㄴ 가장 높은 ip 주소
+
+Loopback
+  - ospf만 재부팅해도 Router ID가 재설정된다.(clear ip ospf process)
+  - 항상 켜져있기 때문에 Router ID로 사용한다.
+
+LSA Type	Description
+   1		Router LSAs(라우터 링크광고)
+   2		Network LSAs(네트워크 링크 광고)
+  3or4		Summary LSAs(요약 링크 광고)
+   5		Autonomous system external LSAs(AS외부 링크 광고)
+   6		Multicast OSPF LSA(멀티캐스트 OSPF(MOSPF) LSA)
+   7		Defined fro not-so-stubby areas(NSSA)
+   8		External attributes LSA for Border Gateway Protocol (BGP) 
+9, 10, 11	Opaque LSAs (미 지정 LSA)
+
+※ 1,2 = ospf router가 생성
+   1번은 모든 OSPF router(LINK STATE,NEIGHBOR) 생성
+   2번은 DR(네트워크정보)이 생성
+   자신이 속해있는 AREA에만 전달
+  3,4 = ABR이 생성
+   3번은 AREA에 있는 요약정보(네트워크)
+   4번은 자신이 속해있는 AREA에 ASBR의 유무
+   모든 AREA에 전달
+  5,7 = ASBR이 생성
+   5번은 다른 외부경로의 보유 유무(축약 가능),전체 OSPF에 전달
+   7번은 동일 AREA에만 전달
+  
+ * 1,2,3,4,5,7은 외우기
+
+Limitations of OSPF
+ - OSPF Network가 하나 이상의 Area로 구성되어 있을 경우에는
+   이들 Area 중 하나의 Area는 반드시 Area 0으로 구성되어야 한다 
+ - 모든 Area는 반드시 Area 0에 연결되어 있어야 한다 
+
+Virtual Links as a Solution
+ - Backbone Area를 확장할 수 있다 
+ - nonbackbone area를 통해서 LSA를 전달할 수 있다 
+ - ABR과ABR의 가상 연결
+명령어 : area (지나갈 area id) virtual-link (연결하고자 하는 ABR) 
+확인 : show ip ospf virtual-links
+link-state database확인 : show ip ospf database
+* (DNA) => virtal link로 연결
+
+OSPF Cost
+ - OSPF cost는 경로 결정을 위한 기준
+ - OSPF cost는 자동으로 계산된다 
+ - Default Cost = 10^8 / Bandwidth 
+ - bandwidth가 변경될 때 마다 다시 재 계산된다 
+
+※ stub area 비교
+EIGRP - QUERY,REPLY,ROUTING UPDATE 차단
+OSPF -  Routing자체를 차단, AREA 차단
+
+ABR - type 3
+area (축약할 주소가 있는 area - id) range (축약할 address mask)
+ 옵션 : [advertise | not-advertise] [cost cost ]
+ASBR - type 5
+summary-address ip - address mask [not-advertise] [tag tag]
+
+Authentication Type
+ 인증 방식 - simple,MD5
+ 인증 방법 - Neighbor, Area
+================================================================================
+EIGRP
+ - Large routing tables
+ - Hisgh memory requirements
+ - 많은 양의 routing traffic
+ - SIA 현상
+
+확장성에 영향을 주는 요인
+ - routing정보의 양
+ - Router의 수
+ - Depth of topology : 정보를 광고하기 위해 거쳐야 하는 hops의 수
+   (Max : 100, 크면 SIA현상 발생)
+ - 네트워크를 지나가는 대체 경로의 수
+   (Topology database에 대체경로를 저장하는데 memory 소요)
+     Internal : 같은 라우터 내의 경로
+     External : 다른 라우팅 프로토콜에 의해 학습된 경로
+
+Design Challenges(단점)
+ - 일반적인 subnet의 인접 라우터 수
+   > 많으면 많을 수록 무리
+ - Network 변경회수
+   > 네트워크 변경에 따른 query reply처리가 힘듬
+ - WAN구간의 EIGRP 로드의 양
+   > 대역폭의 속도가 ↓. 사용량 초과할 가능성 有, 데이터 손실 가능성 有
+ - DUAL 계산 필요
+   > 높은 링크사용률(query, reply), CPU 부하 발생
+
+Stuck in Active
+query에 대한 reply는 3min간 대기
+3min 이후 neighbor 관계 끊임.
+SIA현상 발생 시 모든 Router LOG확인
+
+SIG현상 방지 방법(Active Process Engancement)
+ - query에 의한 reply안오는 것을 방지하기 위해 1m30s뒤에 SIA Query를 보냄
+    => 확인차원에서 보낸다.
+ - SIA Reply를 받아 reply 시간을 늘려서 기다려준다.
+
+EIGRP Stub
+ - end router에 stub설정을 하면 Query를 보내지 않는다.
+ - EIGRP동작 범위가 줄어드는 것
+ - 정보는 전달하되 reply는 하지 않는다.
+
+eigrp stub [receive-only | connected | static | summary] 
+? receive-only: 라우터는 EIGRP AS 안에 있는 다른 라우터와 경로를 공유X 
+? connected: EIGRP 스텁 라우팅 특징에 의해 연결된 경로가 전송 
+? static: EIGRP 스텁 라우팅 특징에 의해 정적 경로가 전송.
+	   Redistribute static 명령어를 실행시켜서 정적 경로를 재분배해야 한다 
+           경로정보만 넘겨준다.
+? summary: EIGRP 스텁 라우팅 특징에 의하여 요약 경로가 전송된다.
+	    ip summary-address eigrp, auto-summary
+
+DUAL Terminology(대역 확산 알고리즘 용어)
+ - 가장 적은 경로의 값을 가진 경로를 선택(lowest-cost loop-free paths)
+ - AD(Advertised Distance) : 광고된 값, 연결된 다음 라우터가 목적지까지의 COST값
+ - FD(Feasible Distance) : 목적지까지의 총 COST값, 로컬 라우터 cos + AD
+ - Lowest-cost = lowest FD
+ - sucessor : 최적 경로(목적지에 이르기 위한 최적 경로)/
+ - Feasible successor = 백업 경로
+			이웃장비로 부터 경로정보를 받을 때 successor의 fd값과 백업장비의 ad값을 비교해서 ad값이 fd값보다 낮아야한다
+			successor의 ad값보다 낮아야 가능
+
+topology talbe에 백업 경로 저장. sucessor에 문제가 있을시 topology talbe확인
+
+DUAL Operation(동작)
+  * topology 변경시
+    - 직접 연결된 경로에 변화가 있을 시
+    - EIGRP packet(update,query,reply)을 받을 때
+    - neighbor가 사라졌을 때
+  * 대체 경로를 찾을 때
+    - 최적경로로 routing table에 등록했는데 사라졌을 때(query를 날림)
+
+Solve Loop issue
+ - FD값과 AD값을 비교해서 loop 해결.
+ - AD값이 FD값보다 높을 경우 table에 저장X
+
+EIGRP Metric(메트릭,Cost)
+ - Bandwidth(K1),Delay(K3),Reliabililty(K4,K5),Loading(K2)
+    ㄴ 하나의 회선에서 처리할 수 있는 데이터 량
+ - 일반적으로 Bandwidth,Delay만 계산(Bandwidth+Delay)
+ - Default metric : Bandwidth(가장 낮은 경로)+Delay(경로의 총합)
+ - Metric = [K1 * BW + ((K2 * BW) / (256 ? load)) + K3 * delay] 
+  * lowest bandwidth로 계산하는 이유
+     - 처리속도가 가장 낮은 bandwidth 처리 속도로 맞춰지기 때문 
+
+EIGRP Planning(계획)
+ - IP addressing plan
+ - Network topology(백업링크도 구성)
+ - 계층적 구조로 network 구성(ip주소로)
+  * EIGRP = 평면적 구조
+ - EIGRP 크기조정에 대한 options
+    summarization,stub
+
+EIGRP Implementation Plan(구축)
+ - Ip address 구성
+ - AS number를 이용하여 EIGRP 활성화
+
+Passive Interface
+ - 추가적인 traffic 조절(불필요한 interface로 traffic 조절)
+
+Route Summarization(축약)
+ - Improves network scalability(대규모망)
+   ○ Smaller routing tables : 라우팅 테이블 축소
+   ○ Fewer updates : 소량의 업데이트
+ - Should follow IP addressing : IP주소를 기준
+※ 대규모 망에서는 ip기반으로 계층화 구조를 가져야 효율적으로 운용할 수 있다.
+※ EIGRP가 대규모망을 운용할 수 있는 건 축약밖에 없다.
+
+ - Manual Route Summarization
+   ○ 인터페이스 별로 축약 가능
+   ○ Null0 = 쓰레기 통
+   ○ 가장 작은 단위로 축약
+※ 172.16.1.0,172.16.2,0을 축약해서 광고하기 위해서 172.16.0.0/22를 광고하면된다. why??
+ =>
+※ null0가 생기는 이유는??
+ => routing table에 해당 network가 없으면 해당 인터페이스로 이동.loop방지,=쓰레기통
+
+Load Balancing(부하분산)
+ - traffic이 몰리거나 처리해야할 데이터가 많을 때 부하분산을 통해 큰 데이터를 처리할 수 있다.
+ - ex)1차선,2차선 차이
+ - 균등 부하분산
+ - 동일한 AD,metric일 경우 로드발란싱이 된다.
+ - 16개 까지 가능. Default 4개
+ - 엔트리값이 1이면 사용 불가(명령어 = maximum-paths (참여가능한 수)
+
+Unequal-Cost Load Balancing
+ - metric값이 달라도 부하분산이 가능
+ - 비율 부하분산
+ - Successor는 항상 사용된다
+ - Feasible successor의 FD값이 Successor FD*variance 값이 낮을경우 활용 가능
+
+Router Authentication(EIGRP 라우터 인증)
+ - 인가된 사용자만 routing table에 업데이트되도록 한다.
+ - Routing Update 패킷의 Source를 인증(보낸 사람을 인증 = 누구로부터 왔는지)
+  ○ Simple password(평문key전달)(표준이기때문에 지원)
+   - OSPF
+   - RIPv2
+  ○ MD5 authentication(해쉬 결과값을 비교)
+   - 해쉬함수 : 단방향 함수
+   - KEY를 전송X
+   - OSPF
+   - RIPv2
+   - BGP
+   - EIGRP
+   - KEY ID와 key-string이 같아야 한다
+※ NTP(Network Time Protocol)
+
+※ 설정 방법
+ip authentication mode eigrp (autonomous-system) md5
+=> 인터페이스에서 설정/인증 방법 설정
+
+ip authentication key-chain eigrp (as-number) (key-name)
+=> Key-Chain내의 Key값을 사용해서 EIGRP Packet들에 대한 인증을 활성화 
+key chain (name-of-chain)
+=>라우터마다 key-chain이름은 달라도 상관x/
+key (key ID)
+=>key id 설정
+key-string (text)
+=>password 설정
+
+================================================================================
+#ACL(Access Control List) : 접근 제어 목록
+ : 접근 제어 목록은 회사나 네트워크 관리 목적에 의해서 세워진 정책에 따라서 네트워크에 접근여부에 대한 내용을 List로 작성한 것. 
+일반적인 방화벽은 기본적으로 이 기능을 가지고 있다. 
+
+ 사용하는 이유?
+ => 보안 : 불필요한 데이터를 외부로부터 차단하기 위해서
+    데이타의 분류 작업 : TCP/IP헤더에서 TOS의 데이타 우선순를 결정하기 위해서 가중치를 부여하는 필드를 통해서 들어온 데이타 어떤데이터인지 구분하기 위해서 ACL을 사용. 특정 변환 작업에 사용할 네트워크 여부도 포함. 
+
+
+ > Access-list 종류(2가지)
+
+  -Standard Access-list : Source(출발지) IP를 검사.
+   => 검사 결과에 따라서 들어온 패킷의 허용, 거부를 결정
+
+  -Extanded Access-list : Source IP, Destination IP, Protocol 옵션으로 Port주소를 검사
+   => 검사 결과에 따라서 들어온 패킷을 허용, 거부를 결정
+
+ > 설정 방법(2가지)
+  - Numberic(숫자)를 이용한 방법
+    :숫자를 이용하여 standard방식과 extanded방식을 구분함.
+     standard방식 : 1 ~ 99, 1300 ~ 1999
+     extanded방식 : 100 ~ 199, 2000 ~ 2699
+
+  - Named(이름)을 이용한 방법
+    : Access-list작성시 리스트의 이름을 지정하여 작성. 작성시에
+     standard 또는 extanded방식을 결정하게 됨.
+
+ > Access-list 적용 방법(2가지)
+  : Access-list의 적용은 트래픽이 지나다니는 인터페이스에 설정
+  - inbound : ACL이 적용되어 있는 경우, 인터페이스를 통해서 들어오는 데이터를 검사한다. 검사 후에 라우팅 작업을 한다. 
+
+  - outbound : ACL이 적용되어 있는 경우, 라우터가 라우팅한 인터페이스로 나갈 때에 해당 인터페이스가 ACL이 적용되어 있으면 검사.
+
+
+ > Access-list 작성시 주의사항... 
+  : 1)Access-list는 첫번째 규칙부터 순서대로 처리하게 된다. 때문에 작성시 주의 사항으로 작은 범위의 규칙을 먼저 작성하고 큰 범위에 내용을 나중에 작성하는 순서로 작업해야 문제가 없다. 
+    2)같은 크기에 영역을 가지는 경우에는 'Permit'과 'Deny'중 'Permit'을 우선시해서 작성을 한다.
+    3)Access-list는 규칙에 매칭이 되지 않으면 모든 패킷을Drop함
+     (white list방식임) 때문에 조건이외에 통신을 하고 싶다면 반드시 모든 조건에 대해서 허용하는 내용이 있어야 한다.
+
+
+#Access-list 작성
+ : 네트워크에 ACL을 적용하는 것은 3가지 단계를 거친다. 첫번째로 네트워크를 분석하고 적용할 내용을 결정하는 협의단계, 두번째로 협의된 내용을 토대로 Access-list를 작성하는 단계, 마지막으로 작성된 Access-list를 인터페이스에 적용하는 단계로 구성이 된다. 
+그 중에 Access-list작성과 적용 방법이다. 
+
+  Numberic방식
+  
+  >>Step 1
+  (config)#access-list [access-list number] {permit|deny} {test condition}
+
+  -[access-list number] : Standard 또는 Extaned 방식의 리스트 번호
+  -{permit|deny} : test conditon 조건에 매치가 되면 허용, 거부 결정
+  -{test condition} : Access-list 방식에 따른 매치 조건을 작성.
+
+  >>Step 2
+  (config-if)#{protocol} access-group [access-list number] {in|out}
+
+==========================================================
+
+==Standard방식==
+Acces-list작성
+(config)#access-list access-list-number {permit | deny} source [mask]
+
+-Access-list-number : Entry가 속할 list 번호 설정. 1~99, 1300~1999사이의 번호가 들어간다
+-permit | deny | remark는 해당 Entry에 매치되면 취할 Action을 정의
+-Source는 송신지 IP Address를 정의한다
+-mask는 Wildcard mask를 사용하여 Address 필드의 어느 비트들이 일치되어야 하는지 설정한다
+
+interface 적용
+(config-if)#ip access-group access-list-number  {in | out}
+-List를 적용할 Interface에서 설정한다
+-Inbound또는 Outbound시 검사하도록 설정한다
+ (Default = outbound)
+-Interface에서 “no ip access-group access-list-number”명령을 사용하여 적용된 Access-list를 제거한다
+
+ **Wildcard mask사용시... 약어들...
+  한개의 host만 표기할 경우... 
+   Wildcard 표현(host 192.168.101.1만 확인할 경우)
+     192.168.101.1(ip) 0.0.0.0(wildcard mask)의 약어 표현 "host"
+   약어를 사용한 경우,
+     host 192.168.101.1(==192.168.101.1 0.0.0.0)
+
+  모든 IP를 표기할 경우 
+   Wildcard 표현(모든 IP를 지정한 경우)
+     0.0.0.0 255.255.255.255(0.0.0.0 0.0.0.0(subnet_mask))의 약어 "any"
+   약어를 사용한 경우,
+     any(==0.0.0.0 255.255.255.255)
+     
+
+==Extanded방식==
+Acces-list작성
+(config)#access-list access-list-number {permit | deny} procotol source {wildcard mask} [operator port] Destination {wildcard mask} [operator port] [established] [log]
+
+-Access-list-number : Entry가 속할 list 번호 설정. 100~199, 2000~2699사이의 번호가 들어간다
+-permit | deny | remark는 해당 Entry에 매치되면 취할 Action을 정의
+-protocol : 통신하는 프로토콜을 지정
+-Source는 송신지 IP Address를 정의,Destination은 목적지 IP주소를 정의한다
+-mask는 Wildcard mask를 사용하여 Address 필드의 어느 비트들이 일치되어야 하는지 설정한다
+-operate port : lt(이하),gt(이상),eq(같은),neq(같지않은),range(범위)을 사용하여 검사할 포트를 지정
+-establish : TCP 3wayhandshake 후 establish상태일 경우(inbound규칙)
+-log : 로그를 console화면에 출력
+
+interface 적용
+(config-if)#ip access-group access-list-number  {in | out}
+
+
+=====================================================
+#Named 방식
+: ACL을 이름으로 지정해서 해당 Access-list의 목적을 쉽게 파악 가능
+  매치룰 중간에 추가 삭제가 가능함.(sequence번호를 사용)
+
+-list 작성
+(config)#ip access-list {Standard|Extanded} name
+(config-{std|ext})#{permit|deny} {test condition}
+
+-적용
+interface 적용
+(config-if)#ip access-group access-list-name  {in | out}
+
+=====================================================
+#특정 어플리케이션에 ACL
+
+>>line vty 0 4
+1) access-list 작성
+2) 적용
+  (config)#line vty 0 4
+  (config-line)#access-class access-list-{number|name} {in|out}
+
+  
+================================================================================
+Redistribute(재분배)
+ 목표
+  1.서로 다른 라우팅 프로토콜 상호간의 경로 정보 업데이트
+  2.Distribute-list를 통해 특정 경로를 지정하여 업데이트 내역을 필터링
+  3.Route-map을 활용한 재분배 컨트롤
+  4. AD값 조절로 경로 최적화
+  5. PBR(정책 기반 라우팅)을 통한 우선 경로 지정 => 프로토콜 변경X
+
+ RIP redistribute(ex. OSPF ↔ RIP)
+  다른 라우팅 경로정보를 RIP 정보로 들고 오는 것
+  경계 라우터에서 재분배
+  redistribute ospf (ospf ID값) metric (값)
+  * 최대 hop count 16(16 = 사용x)
+ 
+ OSPF redistribute(ex. EIGRP ↔ OSPF)
+  redistribute eigrp (as번호) metric (OSPF Cost 값) subnets
+  * metric 값 생략 가능/subnets은 생략X
+  Subnets 옵션 : 재분배시 classless(서브넷팅 된)한 내역을 그대로 가져온다
+
+ EIGRP redistribute(ex. IS-IS ↔ EIGRP)
+  SEED METRIC 값이 필요하다. => metric값은 반드시
+  Metric 옵션 순서 : Bandwidth , delay , Reliability , Load , MTU
+  redistribute isis metric 1544 2000 255 1 1500
+  Reliability는 높게 Load는 낮게
+
+단방향 : 한쪽에서는 재분배,다른쪽에서는 경로를 지정.
+양방향 : 양쪽에서 경로정보 교환(재분배)
+
+Distribute-list(분배)
+ 동작
+  1.Access-list를 통한 대상 지정
+  2.Distribute-list를 통한 필터링
+access-list (number) permit network ip subnet : access-list 작성
+distribute-list (number) out serial 0 : 해당 시얼에서 나갈때 deny
+프로토콜이 달라도 방법은 동일(deny설정을 먼저 할것)
+
+Prefix-list(=access-list)
+
+ LE(less than or equal)
+ : 지정된 Prefix보다 작거나 같은 Prefix,큰 네트워크
+ GE(grater or equal)
+ : 지정된 Prefix보다 크거나 같은 Prefix,작은 네트워크
+ip prefix-list [이름] [permit or deny] [Network /prefix]
+ex) ip prefix-list TEST permit 192.168.10.0/24
+
+1. ip prefix-list TEST permit 0.0.0.0/0
+    --> 디폴트 루트를 의미
+2. ip prefix-list TEST permit 0.0.0.0/0 ge 30
+    --> prefix가 /30 이상인 모든 네트워크 지정
+3. ip prefix-list TEST permit 0.0.0.0/0 le 32
+    --> prefix가 /32 이하인 즉, 전체 모든 네트워크 지정
+4. ip prefix-list TEST permit 0.0.0.0/0 ge 16 le 24
+    --> prefix가 /16 ~ /24 인 모든 네트워크
+※ 4개는 외울 것!(3번은 가장 중요!=permit any)
+주의사항
+ 설정이 없으면 모든 네트워크에 대한 deny가 자동으로 들어간다
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
