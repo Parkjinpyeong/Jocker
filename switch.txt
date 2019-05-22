@@ -1,0 +1,375 @@
+Switch 기본 동작
+ - 학습  : MAC Address에 대한 학습 -> MAC Address Table에 학습
+ - 플러딩 : 학습되지 않은 주소에 대해 수신된 interface를 제외한 모든 interface로 송신
+           ex) Broadcast(FFFF.FFFF.FFFF)
+   *end Device는 받은 pdu를 3계층 ip address로 분별해서 목적지가 아닌 device는 드랍
+ - 포워딩 : 학습된 MAC Address를 기반으로 특정 Interface로 Packet을 전송
+ - 에이징 : MAC Address 주소의 학습 유지 시간
+ - 필터링 : 수신된 Interface로 다시 송신하지 않는다
+
+* packet tracer 데이터 이동 순서 보는 방법
+    simulation -> show all/none -> ARP,ICMP check -> capture/forward
+
+- duplex(통신방식)
+   - half(한쪽통신),full(양방향)
+- speed(통신속도)
+   - 100mbps, 10mbps
+- 모든 네트워크에대해서 vlan 기본 값은 1
+
+port security
+ - switch의 학습을 control
+ - 특정 interface에 접속해서 설정한다.
+ ※ 방법 
+switchport port-security해서 막히면 switchport mode access
+설정을 풀고 switchport port-security
+switchport port-security maximum  
+ ㄴ 트래픽에 대한 출발지를 몇개까지 학습할것인가?
+    여러 end device 중에서 학습할 end device 수량를 설정해주는 것
+    무조건 maximum값을 입력
+    스위치간 연결도 Mac Address Table에 기록
+    스위치간 연결시 maximum 값을 항상 수정!!
+switchport port-security mac-address sticky
+ ㄴ 지정하는 순간부터 가장 먼저 발생한 트래픽부터 학습
+    maximum으로 지정한 수량의 device 수를 학습하면 그 이상의 device를 학습하지 못한다
+switchport port-security mac-address mac 주소 
+ ㄴ 해당 디바이스만 접속 허가
+    해당 mac address를 사용하는 end device만 접속을 허가
+switchport port-security violation restrict
+   				   - 위반시 무시하면서 log 메세지 발생
+				   protect
+				   - 위반시 무시
+				   shutdown
+				   - 위반시 해당 인터페이스 종료
+show port-security
+ ㄴ 설정값 확인
+show port-security address
+ ㄴ secure Mac Address Table 확인
+switchport port-security : 설정값 활성화
+
+================================================================================
+VLAN
+switch에 IP주소 설정
+ - vlan 생성
+( - interface vlan에 접속해서 ip 할당)   ->end device와 설정 시 생략
+ - 활성화해야 switch간 ping 확인 가능
+ - vlan 1번을 제외한 다른 vlan에 설정시 포트 설정도 해줘야 한다.
+    ㄴend device는 access
+      switch간에는 trunk
+--------------------------------------------------------------
+ex)
+vlan 10				      -> access는 자동생성
+interface vlan 10		      -> access는 자동생성
+(ip address 10.10.10.1 255.255.255.0) ->end device와 설정 시 생략
+interface fastethernet 0/1(0/2)
+switchport mode trunk(access)
+switchport trunk(access) allow vlan 10
+--------------------------------------------------------------
+line vty 0 4 -> telnet 설정
+password     -> password 설정
+login        -> login 시
+enable secret cisco -> 관리자 접근 설정
+--------------------------------------------------------------
+
+interface range fastethernet (0/3 - 4) 
+  ㄴ (0/3 ~ 0/4)까지 동일하게 설정 가능
+*trunk 설정에서 vlan 활성화 되어 있는지 확인!
+
+================================================================================
+PVLAN
+ ㄴ primary VLAN(secondary VLAN이 들어가는 구역)
+   isolated(격리) : 해당 vlan과는 통신 불가
+		   Promiscuous port하고만 통신 가능
+		   같은 vlan이라도 통신 불가
+		   private VLAN영역에서 하나만 생성 가능.
+   community : 같은 community만 통신 가능
+		Promiscuous port 통신 가능
+   Promiscuous : 모든 port와 통신 가능(=routing 기능 가능)
+		 포트 자체가 역할 수행
+
+vtp를 transparent 모드에서만 pvan 가능
+
+promiscuous 와 host로 포트 구별
+		ㄴ community, isolated
+------------------------------------------------------------------------
+※ secondary VLAN 설정(ASW)
+vtp mode transparent : vtp 모드 변경해야지 pvlan 설정 가능
+vlan (number) : primary VLAN, secondary VLAN 생성
+private-vlan isolated/community : secondary VLAN mode 설정
+vlan (primary number) : primary vlan 접속
+private-vlan association (secondary Vlan number) : secondary vlan을
+						   primar vlan 소속으로 변경
+interface (fast)ethernet 슬롯/포트 : 설정할 포트 interface 접속
+switchport mode private-vlan (host/promiscuous) : PVLAN mode 설정
+switchport private-vlan host-association (primary vlan secondary vlan)
+※ Promiscuous 설정방법
+interface (fast)ethernet 슬롯/포트 : 설정할 포트 interface 접속
+switchport mode private-vlan promiscuous : promiscuous 모드로 변경
+switchport private-vlan mapping primary secondary
+-------------------------------------------------------------------------
+※ DSW
+vlan (primary number) :primary vlan 생성
+switchport mode access : switchport 모드 변경
+switchport access vlan (primary vlan) : primary vlan 허용
+ip address gateway 주소 subnetmask : ip address 입력
+--------------------------------------------------------------------------
+* show vlan private-vlan : pvlan 설정 값 확인
+* DSW에서는 END DEVICE 와 Ping이 되고 Community는 상호 통신 가능
+  Isolated는 promiscuous와만 가능. 
+
+================================================================================
+Inter-VLAN
+Inter-vlan 종류
+Router - Route on a Stick
+Switch - SVI		-> 가상의 interface를 만들어서 vlan
+			     ㄴ vlan을 위한 interface
+	 Route Port	-> 물리적 연결로 vlan
+
+  Route on a Stick
+Switch 와 Route는 상호 trunk link
+           ㄴ 물리 interface를 여러개로 나눠서 = subinterface
+					     ㄴ vlan의 gateway
+ ※ route에서 작업 간 활성화 먼저
+subinterface 만드는 법
+1. fastethernet 슬롯/포트 . subinterface number
+2. 해당 vlan gateway ip, subnetmask
+---------------------------------------------------------------
+switch에서 삽입한 tag 정보를 router에서 어떻게 확인??
+ - encapsulation dot1q 10(vlan number)
+   ip address 10.1.10.1 255.255.255.0 
+     => 해당 gateway 주소를 vlan10으로 router에서 인식
+         ㄴ network address로 host address 유추 가능
+     => router에서 traffic 정보를 받을때는 switch에서 vlan tag 생성
+     => router에서 switch로 traffic 정보를 보낼때는 router에서
+	vlan tag생성
+
+vlan20으로 router에서 정보를 보내면 switch에서 어떻게 확인??
+ - router에서 vlan 정보와 목적지 정보를 encapsulation해서 switch로 전송
+ - switch에서 router에서 생성한 vlan 정보와 목적지 정보 확인해서 해당
+   vlan과 목적지 정보에 부합하는 end device에 전송.
+---------------------------------------------------------------
+* sw에서 gateway 설정 방법
+   ip default-gateway gateway ip address
+---------------------------------------------------------------
+※ router에서 inter-vlan 설정 방법
+interface (fast)ethernet 슬롯/포트
+no shutdown
+interface (fast)ethernet 슬롯/포트. vlan번호
+encapsulation dot1q vlan번호
+ip address (vlan gateway ip address, subnetmask)
+----------------------------------------------------------------
+end device -switch 통신 안될 시
+ - trunk link 확인
+   vlan정보
+   gateway값 확인
+   no ip routing => switch에서 routing못하게 막아줘야 한다.
+*switch에서 routing 기능이 활성화 되어 있으면 router에 가기 전에 routing
+ 시켜버리기 때문에 switch에서 no ip routing으로 routing기능 비활성화
+================================================================================
+  DTP
+ - Distribute 와 모든 end device 사이 trunk로 설정
+ - switch 간 연결 구간도 적용되나 직접 설정해주는게 관리하기 편함.
+ - DTP가 설정되어 있으면 trunk모드 설정하면 협상 메시지를 보낸다.
+ -  Dynamic Auto			Dynamic Desirable
+	수동적					능동적
+   DTP메시지를 보내지않고 허가만		DTP메시지를 지속 보냄
+ - routeport  : Routing,IP vlan 관련 설정 X
+ - Switchport : VLAN, Switch Function
+ - 
+
+* negotiate 비활성화 방법
+비활성화 -> trunk로 설정 -> nonegotiate -> 활성화
+
+show interface (f0/1) switchport : (슬롯/포트) switchport 설정확인
+administrative mode: 미리 설정이 된 것.
+operational mode : 협상을 통해 설정된것./현재 동작하고 있는 설정
+
+* L3 switch negotiate 비활성화(switchport 명령어)
+trunk encapsultaion dot1q -> mode trunk -> nonegotiate
+
+VTP(vlan trunking protocol)(END-TO-END)
+ - trunk 설정은 필수
+ - switch들이 속한 group = Domain
+ - group 내 모든 switch들은 동일한 Domain 이름을 가져야 함
+ - trunk port,link로만 VTP 정보 전파
+ - VLAN 설정을 정보 공유
+    client switch에 end device가 추가 연결되서 추가 vlan을 생성하려면
+    server에서 vlan을 생성해서 client switch로 vlan정보를 보낸다.
+	모드
+ - server : 모든 vlan정보 보유
+	    VLAN 생성,수정,삭제
+	    다수의 server 간 vlan 정보를 동기화(자동 : 5분 소요)
+              ㄴ Revision Number로 확인
+	    다른 server가 만든 VTP정보를 Forward
+	    VTP정보를 만들어서 send
+	    VLAN설정은 NVRAM,Flash에 저장 가능
+* send : 정보를 직접 만들어서 보내는 것.
+* forward : 정보를 전달하는 것(공유)
+ - client : VLAN 정보 동기화(자동 : 5분 소요)
+	      ㄴ Revision Number로 확인
+	    다른 Switch가 Forward한 VTP정보를 Forward
+ - Transparent : 독립모드.
+		 개별적으로 VLAN 생성,수정,삭제
+		 VLAN설정은 NVRAM에 저장 가능
+		 다른 Switch가 Forward한 VTP정보를 Forward
+		 server에서 vlan을 생성해도 transparent에서는 생성이
+		 안되므로 추가 생성해야 통신 가능
+* 별도의 설정없이는 switch는 server로 동작
+* allow는 vlan통신이 가능하나 active에 없으면 vlan을 생성하면 된다
+vtp domain (domain 이름):server,transparent,client 동일하게 설정
+vtp prunning :
+	      두개의 switch에 동일한 vlan을 사용하더라도 access를
+	      풀어버리면 상호 통신을 막을 수 있다.
+vtp status 상 revision : server와 client는 동일
+※ vtp domain에 추가 switch를 추가 할 때
+ 추가 switch를 transparent로 변경했다가 server나 client로 변경
+*vtp 설정하기 전에 sw기본 설정 마무리하고 마지막에 vtp 설정한다.
+================================================================================
+STP
+이중화 구성된 경로 중 하나의 link를 차단하고 하나의 link만 사용
+사용중인 link에 문제가 발생시 다른 link 개방.
+BPDU를 송수신하면서 Root Bridge 선정.
+ ㄴ 2초마다 전송         ㄴ loop가 발생하는 구간을 찾기 위해 message를 전송하는 switch
+
+Root Bridge만 BPDU를 전송. 
+BPDU를 교환하고 Bridge ID가 높은 switch는 Bridge ID가 낮은 switch의 BPDU를 다른
+switch에게 flooding한다.
+BPDU를 비교하는건 STP Protocol.
+switch간 BPDU를 비교하고 자신의 Bridge ID가 높으면 더이상 BPDU를 생성 X
+LOOP가 발생한 switch간에 block 될 switch를 선정해야 하는데 
+BPDU를 전송되고 있는 interface : Designated Port(지정 포트)
+BPDU를 수신하고 있는 Port : Root Port
+			(단, Root Bridge로 가장 빨리 도달할 수 있는 interface)
+			(switch당 하나의 Root Port 존재)
+switch는 Root Port를 제외하고 받은 BPDU를 Forwarding
+segment당 하나의 Designated Port 선출/조건
+   1. Cost(누가 더 빨리 root bridge로 도달할수 있는가
+    * 가장 빠른 경로는 1개만 있어야 한다.
+    * Root Port에서만 의미를 가진다.
+   2. Bridge ID
+   3. Port ID
+
+※packet tracer 상 노란불 들어오는 Port가 block된 것.
+
+learging states에서 MAC Address 학습.
+Port가 block이 되어도 BPDU는 계속 온다.
+BPDU가 오지 않으면(20sec) network가 변경된 것으로 인식하고 ROOT BRIDGE 재판단.(15sec)
+Root Bridge로 선정된 Switch의 BPDU 정보 : ROOT ID
+현재 switch의 BPDU 정보 : Bridge ID
+CST  : VLAN 구분 X, 하나의 SPanning tree 동작
+PVST : VLAN 당 하나의 Spanning tree 동작
+       Bridge ID 상 Priority = 32768+vlan
+802.1D(MST) : 여러 VLAN을 하나의 instance로 묶어 spanning tree 사용
+모든 switch는 Root Bridge로부터 BPDU를 받으면 cost/Bridge ID/Port ID를 자신의 정보로 수정
+							ㄴ 기본 128 + port
+받는 BPDU의 정보가 동일할 경우 자신의 Port number를 비교해서 block
+Bridge ID 구성
+vlan미활용 stp 종류 : Bridge Priority + MAC Address
+                      2byte
+vlan활용 stp 종류 : Bridge Priority + Extend System ID + MAC Address
+*각 vlan마다 root priority값을 변경하여 traffic 조절.
+priority 값은 4096씩 증가.
+
+-----------------------------------------------------------------------------
+spanning-tree vlan (vlan number) root primary    : switch RootBridge 설정
+spanning-tree vlan (vlan number) root secondary  : Secondary Root Bridge 설정
+                or
+spanning-tree vlan (vlan number) priority (priority value) : Priority값 변경
+------------------------------------------------------------------------------
+block port가 아닌 다른 port가 장애가 발생 : 간접 링크 장애
+
+================================================================================
+MSTP
+여러 vlan을 하나의 instance로 묶어 관리
+Extended System ID에 MST Instance Number 추가.
+instance Number로 구별
+Name과 Revision Number로 MST Region을 구분.
+같은 MST Regions에 구성하려면 Name과 Revision Number을 동일하게
+
+spanning-tree mode mst : mst 모드 변경
+spanning-tree mst configuration : mst 설정 모드
+name      (name)	: 영역 이름 부여
+revision  (rev_number)  : Revision Number 설정
+instance (ins_num) vlan (range)  : instance번호에 할당 할 vlan 범위
+spanning-tree mst (ins_num )root (primary | secondary) : instance 별 root 설정
+show spanning-tree mst configuration : mst 설정 정보 확인
+show spanning-tree mst (instance_number) : 해당 instance 설정 정보 확인
+bound : 다른 revision과 연결된 port
+다수의 vlan이 같은 경로로 이동할 경우 관리가 편하다.
+================================================================================
+이중화게이트웨이
+  * Proxy ARP : Switch - Router 구간 Classful,  
+  - Proxy : 중간매체 장치
+  - ARP   : 프로토콜
+  - (End Device가 다른 네트워크 Devicedml ARP Table을 모를때)
+    다른 네트워크와 통신할때 다른 네트워크 주소를 가지고 있는 router가 ARP를 보낸다.
+
+ * Router Redundancy
+   하나의 Gateway ip address를 두개의 router가 사용.
+   forwarding router : 작동중인 router
+   standby router    : 대기 router
+
+virtual GW Address 설정
+ - svi 생성후 ip address 할당.
+ - standby (그룹 number) ip (ip address)
+ - ip address가 가장 높은 router가 forwarding router
+
+ - standby (그룹 number) preempt (Delay minimum sec): 선점기능 활성화(딜레이 시간 활성화)
+ - show standby brief : 선점 기능 확인
+ - standby (그룹 number ) timers (hello 초) ( hold 초)
+  
+ ※HSRP(Cisco)
+     - Active router,Standby router에서 hello 메시지 송수신(10초,기회 3번)
+     - 메시지가 오지 않으면 standby가 active로
+     
+     - 기존 active router가 다운이 되어 standby router가 되어도 '선점' 기능을 활용하면 active router 가능.
+
+ * loopback 생성 ( 외부 네트워크과 연결되는 지 확인할 때 필요)
+     interface loopback (number)
+
+ * trace (ip) : 패킷이동 경로 확인
+    ㄴ end device에서 가능
+
+ * l3 구간 uplink 문제 발생 시
+     - 기존 priority값을 다운(standby보다 낮게)
+        standby (그룹 number) track (number) decrement (감소할 priority 값)
+        track (그룹 number) interface ethernet(슬롯/포트) line-protocol 
+        track (그룹 number) ip route (ip/ ) reachability 
+        show track : track 값 확인
+     - preempt 활용해서 active router로 활용
+
+ ※ VRRP(표준)
+    - 1개의 active(master), backup
+    - 실제 ip 주소로도 가상 gw주소로 활용 가능.(비추천)
+    - object로만 track 가능.
+    - hello : 1 sec, hold : 3sec.
+    - 명령어는 standby -> vrrp
+
+ ※ GLBP
+    - 1개의 그룹안에 1개의 AVG, 여러개의 AVF 존재, AVF/AVF당 1개의 MAC주소
+    - hello : 3sec, hold : 10sec(default)
+    * AVG : Active Virtual Gateway
+            Client의 ARP 요청에 대한 응답을 수행 장치
+	    Client가 실제로 사용할 GW를 분배(AVF)하는 역할
+
+    * AVF : Active Virtual Forwarder
+            외부 네트워크로 연결을 시켜주는 장치
+
+    - forwarder preempt : AVF
+    - preemt 		: AVG
+    - weighting (기본 가중치값) lower (최저값) upper (최고값) : AVF에 대한 가중치 값(가중치 값으로 동작 조절)
+							  최저값 밑으로는 동작x, 
+    - weighting track (object) decrement (감소값)
+    - load-balancing { host-dependent  |  round-robin  | wighted} 
+			ㄴ고정으로 할당     ㄴ요청순서대로 할당  ㄴ가중치 값에 따라 device 할당
+                      기본으로 round-robin		기본으로 round-robin
+
+================================================================================
+
+
+
+
+
+
+
+
+
