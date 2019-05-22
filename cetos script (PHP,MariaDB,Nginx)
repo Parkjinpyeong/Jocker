@@ -1,0 +1,75 @@
+#!/bin/bash
+
+cd /etc/yum.repos.d/
+touch ./nginx.repo
+chmod 711 ./nginx.repo
+
+cat << 'EOF' >> ./nginx.repo
+[nginx]
+name = nginx repo
+baseurl = http://nginx.org/pachages/centos/$releasever/$basearch/
+gpgcheck = 0
+enabled =1
+EOF
+
+yum -y install nginx
+echo $?
+
+touch ./MariaDB.repo
+chmode 711 ./MariaDB.repo
+
+cat<<'EOF' >> ./MariaDB.repo
+[mariadb]
+baseurl = http://yum.mariadb.org/10.1/centos7-amd64
+gpgkey = http://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck = 1
+EOF
+
+yum -y install MariaDB-server
+echo $?
+
+yum install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+yum install epel-release yum-utils
+yum-config-manager --disable remi-php54
+yum-config-manager --enable remi-php73
+
+yum -y install PHP-fpm
+echo $?
+
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --reload
+
+cd /etc/
+cat ./php.ini
+sed -i 373s/On/Off/" php.ini
+sed -i "793s/;//" php.ini
+sed -i "793s/1/0/" php.ini
+sed -i "852s/On/Off/" php.ini
+
+
+cd /etc/php-fpm.d
+cat ./www.conf
+sed -i "24s/apache/nginx/" www.conf
+sed -i "26s/apache/nginx/" www.conf
+sed -i "48s/;//" www.conf
+sed -i "49s/;//" www.conf
+END
+
+cd /etc/nginx/conf.d/
+cat ./default.conf
+sed -i "3s/localhost/192.168.1.54/" default.conf
+sed -i "10s/index.html/index.html index.php/" default.conf
+sed -i "30s/#//" default.conf
+sed -i "31s/#//" default.conf
+sed -i "31s/html/\/usr\/share\/nginx\/html/" default.conf
+sed -i "32s/#//" default.conf
+sed -i "33s/#//" default.conf
+sed -i "34s/#//" default.conf
+sed -i "35s/#//" default.conf
+sed -i "34s/\/scripts\$fastcgi_script_name/\$document_root\$fastcgi_script_name/" default.conf
+sed -i "36s/#//" default.conf
+
+systemctl restart nginx
+systemctl restart php-fpm
+systemctl restart mysql
