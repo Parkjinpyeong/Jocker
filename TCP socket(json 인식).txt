@@ -1,0 +1,112 @@
+#include <time.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <unistd.h>
+#include <json-c/json.h>
+#include <sys/timeb.h>
+#include <sys/time.h>
+
+int main(void) {
+        char message[1024*10] ;
+        struct sockaddr_in server_addr, client_addr;
+        int server_so, client_so, clilen, i;
+        long t=0;
+        int recv_len = 0;
+        int recv_total = 0;
+        struct json_object *parsed_json, *a_json, *note_json;
+        struct json_object *from, *note, *notes, *to, *amount, *date;
+        time_t now;
+
+
+        if((server_so = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+                perror("socket error");
+                exit(0);
+        }
+
+        printf("socket create\n");
+
+        memset(&server_addr, 0x00, sizeof(server_addr));
+        server_addr.sin_family = PF_INET;
+        server_addr.sin_port = htons(9000);
+        server_addr.sin_addr.s_addr = inet_addr("192.168.0.93");
+
+        if(bind(server_so, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0 ) {
+                perror("bind error");
+                exit(0);
+        }
+
+        printf("bind success\n");
+
+        while(1){
+
+                if(listen(server_so, 5) < 0) {
+                        perror("listen error");
+                        exit(0);
+                }
+
+                printf("listen\n");
+
+                clilen = sizeof(client_addr);
+                client_so = accept(server_so, (struct sockeraddr*)&client_addr, &clilen);
+
+                if(client_so < 0) {
+                        perror("accept error");
+
+                        exit(0);
+                } printf("accept success\n");
+                printf("\n");
+                recv_total = 0;
+                while(0 < (recv_len = recv(client_so, message + recv_total, sizeof(message) - recv_total, 0)))
+                {
+// recv (data length)
+// buffer size check  >= data length
+// false => buffer resizing
+// recv (json data, data length)
+// ==> parsing
+// realloc
+                        recv_total  += recv_len;
+                }
+                message[recv_total]  = '\0';
+
+                parsed_json = json_tokener_parse(message);
+                note_json = json_object_object_get(parsed_json, "note");
+                json_object_object_get_ex(parsed_json, "from", &from);
+
+
+
+                printf("From: %s\n", json_object_get_string(from));
+                printf("\n");
+                for(i=0; i<json_object_array_length(note_json); i++)
+                {
+                        a_json = json_object_get(json_object_array_get_idx(note_json, i));
+                        json_object_object_get_ex(a_json, "to", &to);
+                        json_object_object_get_ex(a_json, "amount", &amount);
+                        json_object_object_get_ex(a_json, "date", &date);
+                        printf("%lu. \n", i+1);
+                        printf("to : %s\n", json_object_get_string(to));
+                        printf("amount : %s\n", json_object_get_string(amount));
+                        printf("date : %s\n", json_object_get_string(date));
+                        printf("\n");
+
+                        t = atol(json_object_get_string(date));
+                        now = time(NULL);
+                        printf("%ld\n", now);
+
+                        if(now*1000 >= t){
+                                printf("transfer\n");
+                        }else {
+                                printf("fail\n");
+                        }
+                }
+
+                close(client_so);
+        }
+
+        close(server_so);
+
+        return 0;
+}
+
